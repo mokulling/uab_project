@@ -65,22 +65,26 @@ def get_pca_table(season, min_pa=200, data=None):
     )
 
     totals["raw_pca"] = totals["cab"].div(totals["uab"].replace(0, np.nan))
-    totals["uab_rate"] = (totals["uab"]/totals["total_pa"]*100).round(2)
-    totals["cab_rate"] = (totals["cab"]/totals["total_pa"]*100).round(2)
+    totals["uab_rate"] = (totals["uab"] / totals["total_pa"] * 100).round(2)
+    totals["cab_rate"] = (totals["cab"] / totals["total_pa"] * 100).round(2)
 
-    # League avg normalization
+    # Normalize
     league_pca = totals["cab"].sum() / totals["uab"].sum()
-    totals["CAB+"] = (totals["raw_pca"]/league_pca*100).round(1)
+    totals["PCA+"] = (totals["raw_pca"] / league_pca * 100).round(1)
 
     totals = totals[totals["total_pa"] >= min_pa]
 
-    # Batter ID → Name map
+    # Map batter IDs → player names
+    from pybaseball import playerid_reverse_lookup
     ids = totals["batter"].tolist()
     id_map = playerid_reverse_lookup(ids, key_type="mlbam")[
         ["key_mlbam","name_first","name_last"]
     ].rename(columns={"key_mlbam":"batter"})
     totals = totals.merge(id_map, on="batter", how="left")
-    totals["player_name"] = (totals["name_first"].fillna("")+" "+totals["name_last"].fillna(""))
+    totals["player_name"] = (
+        totals["name_first"].fillna("") + " " + totals["name_last"].fillna("")
+    )
 
-    cols = ["player_name","total_pa","uab","cab","uab_rate","cab_rate","CAB+"]
-    return totals[cols].sort_values("CAB+", ascending=False).reset_index(drop=True)
+    # 👇 Keep batter ID as a column in final output
+    cols = ["batter","player_name","total_pa","uab","cab","uab_rate","cab_rate","PCA+"]
+    return totals[cols].sort_values("PCA+", ascending=False).reset_index(drop=True)
